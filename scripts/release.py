@@ -7,7 +7,8 @@
     scripts/release.py zip [--out dist]                       build the installable zip
     scripts/release.py publish dist/datum-1.2.3.zip           upload to plugins.qgis.org
 
-``publish`` reads OSGEO_USERNAME / OSGEO_PASSWORD from the environment.
+``publish`` uses QGIS_PLUGIN_TOKEN (a per-plugin upload token; works for GitHub-login
+accounts) or, failing that, OSGEO_USERNAME / OSGEO_PASSWORD.
 """
 
 import argparse
@@ -15,6 +16,9 @@ import configparser
 import os
 import re
 import sys
+import urllib.error
+import urllib.request
+import uuid
 import xmlrpc.client
 import zipfile
 
@@ -84,11 +88,81 @@ def build_zip(out_dir):
     return path
 
 
+REPO_URL = "https://plugins.qgis.org"
+
+
 def publish(zip_path):
+    """Upload with a plugin token (GitHub/SSO accounts) or OSGeo credentials (XML-RPC)."""
+    token = os.environ.get("QGIS_PLUGIN_TOKEN")
+    if token:
+        return publish_with_token(zip_path, token)
     user, password = os.environ.get("OSGEO_USERNAME"), os.environ.get("OSGEO_PASSWORD")
-    if not user or not password:
-        print("error: set OSGEO_USERNAME and OSGEO_PASSWORD", file=sys.stderr)
+    if user and password:
+        return publish_with_password(zip_path, user, password)
+    print("error: set QGIS_PLUGIN_TOKEN, or OSGEO_USERNAME and OSGEO_PASSWORD", file=sys.stderr)
+    return False
+
+
+def _multipart(fields, files):
+    boundary = uuid.uuid4().hex
+    out = []
+    for name, value in fields.items():
+        out += [f"--{boundary}", f'Content-Disposition: form-data; name="{name}"', "", value]
+    body = "\r\n".join(out).encode() + (b"\r\n" if out else b"")
+    for name, (filename, data, ctype) in files.items():
+        body += (f"--{boundary}\r\nContent-Disposition: form-data; name=\"{name}\"; filename=\"{filename}\"\r\n"
+                 f"Content-Type: {ctype}\r\n\r\n").encode() + data + b"\r\n"
+    body += f"--{boundary}--\r\n".encode()
+    return body, f"multipart/form-data; boundary={boundary}"
+
+
+class _NoRedirect(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, *args, **kwargs):
+        return None  # a redirect means the form was accepted; don't follow it
+
+
+def publish_with_token(zip_path, token, base_url=REPO_URL):
+    """POST to /plugins/api/<package>/version/add/ with a per-plugin Bearer token.
+
+    Tokens are created on the plugin's page (Manage › Tokens) once the plugin exists,
+    so the very first upload has to go through the website.
+    """
+    md = metadata()
+    fields = {"changelog": md.get("changelog", "")}
+    if md.get("experimental", "").strip().lower() == "true":
+        fields["experimental"] = "on"
+    with open(zip_path, "rb") as f:
+        body, ctype = _multipart(fields, {"package": (os.path.basename(zip_path), f.read(), "application/zip")})
+    url = f"{base_url}/plugins/api/{PLUGIN}/version/add/"
+    req = urllib.request.Request(url, data=body, method="POST", headers={
+        "Authorization": f"Bearer {token}", "Content-Type": ctype, "User-Agent": "datum-release"})
+    opener = urllib.request.build_opener(_NoRedirect)
+    try:
+        with opener.open(req, timeout=120) as resp:
+            status, page = resp.status, resp.read().decode("utf-8", "replace")
+    except urllib.error.HTTPError as e:  # includes the 302 the site answers on success
+        with e:
+            status, page = e.code, e.read().decode("utf-8", "replace")
+    except urllib.error.URLError as e:
+        print(f"error: could not reach {base_url}: {e.reason}", file=sys.stderr)
         return False
+    if 300 <= status < 400:
+        print(f"published: {PLUGIN} {md['version']} uploaded; it appears once the QGIS team approves it")
+        return True
+    if status == 403:
+        print("error: plugins.qgis.org refused the token (revoked, or for another plugin)", file=sys.stderr)
+        return False
+    if status == 404:
+        print(f"error: no plugin named '{PLUGIN}' on plugins.qgis.org yet; upload the first version "
+              f"by hand at {base_url}/plugins/add/", file=sys.stderr)
+        return False
+    errors = [re.sub(r"<[^>]+>", " ", e) for e in re.findall(r'<ul class="errorlist[^"]*">(.*?)</ul>', page, re.S)]
+    detail = "; ".join(" ".join(e.split()) for e in errors) or f"HTTP {status}"
+    print(f"error: plugins.qgis.org rejected the upload: {detail}", file=sys.stderr)
+    return False
+
+
+def publish_with_password(zip_path, user, password):
     from urllib.parse import quote
     endpoint = f"https://{quote(user, safe='')}:{quote(password, safe='')}@plugins.qgis.org/plugins/RPC2/"
     server = xmlrpc.client.ServerProxy(endpoint, verbose=False)

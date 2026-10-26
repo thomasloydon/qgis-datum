@@ -4,6 +4,9 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ## [Unreleased]
 
+### Added
+- Releases can publish to plugins.qgis.org with a per-plugin upload token (`QGIS_PLUGIN_TOKEN`), which works for accounts that sign in with GitHub. OSGeo username/password still works as a fallback.
+
 ### Fixed
 - BC WMS default projection is chosen by exact host match rather than a URL prefix (CodeQL `py/incomplete-url-substring-sanitization`).
 
