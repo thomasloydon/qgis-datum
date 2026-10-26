@@ -4,12 +4,6 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ## [Unreleased]
 
-### Added
-- Releases can publish to plugins.qgis.org with a per-plugin upload token (`QGIS_PLUGIN_TOKEN`), which works for accounts that sign in with GitHub. OSGeo username/password still works as a fallback.
-
-### Fixed
-- BC WMS default projection is chosen by exact host match rather than a URL prefix (CodeQL `py/incomplete-url-substring-sanitization`).
-
 ## [1.0.0] - 2026-10-25
 
 First public release.
@@ -22,7 +16,7 @@ First public release.
 - **Add by URL** with detection of WMS/WMTS/WFS, ArcGIS REST, XYZ, COG and vector files, and of CKAN/STAC catalogues as new search sources.
 - **Library** of favourites (with import and export) and history.
 - Settings for sources, layer grouping, metadata, vector defaults, downloads, imagery defaults and language.
-- CI (lint, unit tests, headless QGIS LTR/stable/nightly) and tag-driven releases.
+- CI (lint, unit tests, headless QGIS LTR/stable/nightly, CodeQL) and tag-driven releases to GitHub and plugins.qgis.org (per-plugin upload token or OSGeo ID).
 
 ### Fixed during pre-release testing
 - DEM size budget was wrong in Web Mercator and other non-metric-scale projections, giving outputs up to 2.4× too large.
@@ -30,6 +24,7 @@ First public release.
 - One-click DEMs over large areas stream instead of downloading.
 - Contours and 8-bit hillshade output failed with some GDAL options.
 - Hillshades streaked when QGIS drew from coarse overviews; DEM layers now use bilinear resampling.
+- BC WMS default projection is now chosen by exact host match rather than a URL prefix (flagged by CodeQL).
 
 [Unreleased]: https://github.com/thomasloydon/qgis-datum/compare/v1.0.0...HEAD
 [1.0.0]: https://github.com/thomasloydon/qgis-datum/releases/tag/v1.0.0
