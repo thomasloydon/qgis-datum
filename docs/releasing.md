@@ -64,5 +64,5 @@ If you have an [OSGeo ID](https://id.osgeo.org), add `OSGEO_USERNAME` and `OSGEO
 
 ```sh
 make check   # validate metadata.txt
-make zip     # dist/datum-<version>.zip, the same file CI builds
+make zip     # dist/datum-<version>.zip (datum/ plus LICENSE), the same file CI builds
 ```

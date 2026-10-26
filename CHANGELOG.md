@@ -4,6 +4,11 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ## [Unreleased]
 
+## [1.0.1] - 2026-10-25
+
+### Fixed
+- The plugin package now includes `LICENSE`, which plugins.qgis.org requires.
+
 ## [1.0.0] - 2026-10-25
 
 First public release.
@@ -26,5 +31,6 @@ First public release.
 - Hillshades streaked when QGIS drew from coarse overviews; DEM layers now use bilinear resampling.
 - BC WMS default projection is now chosen by exact host match rather than a URL prefix (flagged by CodeQL).
 
-[Unreleased]: https://github.com/thomasloydon/qgis-datum/compare/v1.0.0...HEAD
+[Unreleased]: https://github.com/thomasloydon/qgis-datum/compare/v1.0.1...HEAD
+[1.0.1]: https://github.com/thomasloydon/qgis-datum/compare/v1.0.0...v1.0.1
 [1.0.0]: https://github.com/thomasloydon/qgis-datum/releases/tag/v1.0.0

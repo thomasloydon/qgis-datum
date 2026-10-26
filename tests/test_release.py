@@ -133,6 +133,9 @@ class ZipAndMetadataTests(unittest.TestCase):
                 names = zf.namelist()
         self.assertEqual({n.split("/")[0] for n in names}, {release.PLUGIN})
         self.assertFalse([n for n in names if "__pycache__" in n or n.endswith(".pyc")])
+        # plugins.qgis.org refuses packages without a licence inside the plugin folder
+        for required in ("metadata.txt", "__init__.py", "LICENSE"):
+            self.assertIn(f"{release.PLUGIN}/{required}", names)
 
     def test_metadata_is_publishable(self):
         with redirect_stdout(io.StringIO()), redirect_stderr(io.StringIO()):
