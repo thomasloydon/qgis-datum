@@ -4,7 +4,7 @@
 
 | Workflow | Trigger | Jobs |
 |---|---|---|
-| [`ci.yml`](../.github/workflows/ci.yml) | push to `main`, every PR, manual, and called by `release.yml` | **lint** (ruff + metadata check) · **Unit** on Python 3.10 and 3.13 · **QGIS** `ltr` / `stable` / `latest` containers (core tests incl. GDAL + offline smoke test; `latest` is the nightly build and advisory only) · **package** (builds the plugin zip as an artifact) |
+| [`ci.yml`](../.github/workflows/ci.yml) | push to `main`, every PR, manual, and called by `release.yml` | **lint** (ruff, metadata check, and the plugins.qgis.org scanners: Bandit, flake8, detect-secrets) · **Unit** on Python 3.10 and 3.13 · **QGIS** `ltr` / `stable` / `latest` containers (core tests incl. GDAL + offline smoke test; `latest` is the nightly build and advisory only) · **package** (builds the plugin zip as an artifact) |
 | [`integration.yml`](../.github/workflows/integration.yml) | weekly (Mondays) and manual | end-to-end checks against the live catalogues in `qgis/qgis:stable`, kept out of PRs so third-party outages can't block merges |
 | [`release.yml`](../.github/workflows/release.yml) | push of a `v*` tag | reruns CI → checks the tag matches `metadata.txt` → GitHub release with the zip → upload to plugins.qgis.org (token or OSGeo ID; skipped if neither is set) |
 

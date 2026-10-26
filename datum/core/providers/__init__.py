@@ -5,6 +5,9 @@ from .base import Provider
 from .ckan import CkanProvider, BCDataCatalogue, OpenCanada
 from .stac import StacProvider, nrcan_datacube, earth_search, planetary_computer
 
+__all__ = ["Provider", "CkanProvider", "BCDataCatalogue", "OpenCanada", "StacProvider", "nrcan_datacube",
+           "earth_search", "planetary_computer", "KNOWN_PORTALS", "custom_id", "build_registry"]
+
 
 # Portals that can be switched on from Settings with one click.
 KNOWN_PORTALS = [

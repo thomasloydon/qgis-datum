@@ -16,8 +16,10 @@ from .widgets import hint, section
 
 EXAMPLES = [
     ("WMS", "https://openmaps.gov.bc.ca/geo/pub/wms"),
-    ("ArcGIS REST", "https://services.arcgis.com/P3ePLMYs2RVChkJx/arcgis/rest/services/World_Countries_(Generalized)/FeatureServer/0"),
-    ("Cloud-optimised GeoTIFF", "https://canelevation-dem.s3.ca-central-1.amazonaws.com/mrdem-30/mrdem-30-dtm-hillshade.tif"),
+    ("ArcGIS REST", "https://services.arcgis.com/P3ePLMYs2RVChkJx/arcgis/rest/services/"
+                    "World_Countries_(Generalized)/FeatureServer/0"),
+    ("Cloud-optimised GeoTIFF", "https://canelevation-dem.s3.ca-central-1.amazonaws.com/"
+                                "mrdem-30/mrdem-30-dtm-hillshade.tif"),
     ("XYZ tiles", "https://tile.openstreetmap.org/{z}/{x}/{y}.png"),
     ("STAC API (save as a source)", "https://datacube.services.geo.ca/stac/api"),
     ("CKAN portal (save as a source)", "https://open.alberta.ca"),
@@ -76,7 +78,11 @@ class UrlTab(QWidget):
         self.url.returnPressed.connect(self.detect)
         self.detect_btn.clicked.connect(self.detect)
         self.add_btn.clicked.connect(self.add)
-        self.examples.itemClicked.connect(lambda it: (self.url.setText(it.data(Qt.ItemDataRole.UserRole)), self.detect()))
+        self.examples.itemClicked.connect(self._example_clicked)
+
+    def _example_clicked(self, item):
+        self.url.setText(item.data(Qt.ItemDataRole.UserRole))
+        self.detect()
 
     def detect(self):
         url = self.url.text().strip()
@@ -114,7 +120,8 @@ class UrlTab(QWidget):
                 return ("resource", Resource(url, svc, strip_query(url), svc.upper()))
             try:  # maybe the bare endpoint needs GetCapabilities
                 for svc in ("WMS", "WFS", "WMTS"):
-                    caps = net.fetch(strip_query(url), params={"service": svc, "request": "GetCapabilities"}, timeout=15)
+                    caps = net.fetch(strip_query(url), params={"service": svc, "request": "GetCapabilities"},
+                                     timeout=15)
                     found = detect_capabilities(caps)
                     if found:
                         return ("resource", Resource(url, found, strip_query(url), found.upper()))
@@ -124,7 +131,7 @@ class UrlTab(QWidget):
         if head[:1] in (b"{", b"["):
             data = json.loads(body.decode("utf-8", "replace"))
             if isinstance(data, dict):
-                if "stac_version" in data and any(l.get("rel") == "search" for l in data.get("links", [])):
+                if "stac_version" in data and any(link.get("rel") == "search" for link in data.get("links", [])):
                     return ("source", {"name": data.get("title") or data.get("id") or url, "url": base, "type": "stac"})
                 if data.get("type") in ("FeatureCollection", "Feature"):
                     return ("resource", Resource(url, Kind.VECTOR_FILE, url, "GeoJSON"))

@@ -45,12 +45,12 @@ class StacProvider(Provider):
                 data = self.http(f"{self.url}/collections")
                 cols = data.get("collections", [])
                 # follow pagination if the server uses it
-                nxt = next((l["href"] for l in data.get("links", []) if l.get("rel") == "next"), None)
+                nxt = next((link["href"] for link in data.get("links", []) if link.get("rel") == "next"), None)
                 guard = 0
                 while nxt and guard < 20:
                     page = self.http(nxt)
                     cols += page.get("collections", [])
-                    nxt = next((l["href"] for l in page.get("links", []) if l.get("rel") == "next"), None)
+                    nxt = next((link["href"] for link in page.get("links", []) if link.get("rel") == "next"), None)
                     guard += 1
                 self._collections = [c for c in cols if c.get("id") not in self.hidden]
             return self._collections
@@ -85,7 +85,8 @@ class StacProvider(Provider):
             source_label=self.label,
             description=desc.split("\n\n")[0][:1500] if desc else "",
             organization=providers,
-            page_url=next((l["href"] for l in c.get("links", []) if l.get("rel") in ("about", "license", "describedby")),
+            page_url=next((link["href"] for link in c.get("links", [])
+                           if link.get("rel") in ("about", "license", "describedby")),
                           f"{self.url}/collections/{c['id']}"),
             tags=list(c.get("keywords") or [])[:12],
             license=lic,
@@ -137,7 +138,7 @@ class StacProvider(Provider):
         guard = 0
         while True:
             items += data.get("features", [])
-            nxt = next((l for l in data.get("links", []) if l.get("rel") == "next"), None)
+            nxt = next((link for link in data.get("links", []) if link.get("rel") == "next"), None)
             if not nxt or len(items) >= limit or guard > 20:
                 break
             guard += 1
@@ -164,7 +165,7 @@ class StacProvider(Provider):
 class PlanetaryComputerSigner:
     """Appends a short-lived SAS token to Planetary Computer blob URLs."""
 
-    TOKEN_URL = "https://planetarycomputer.microsoft.com/api/sas/v1/token/{collection}"
+    SAS_ENDPOINT = "https://planetarycomputer.microsoft.com/api/sas/v1/token/{collection}"
 
     def __init__(self, http):
         self.http = http
@@ -177,7 +178,7 @@ class PlanetaryComputerSigner:
         with self._lock:
             tok = self._tokens.get(collection)
             if not tok or tok[0] < time.time() + 300:
-                data = self.http(self.TOKEN_URL.format(collection=collection), use_cache=False)
+                data = self.http(self.SAS_ENDPOINT.format(collection=collection), use_cache=False)
                 # tokens are valid ~1h; refresh a little early
                 tok = (time.time() + 45 * 60, data["token"])
                 self._tokens[collection] = tok

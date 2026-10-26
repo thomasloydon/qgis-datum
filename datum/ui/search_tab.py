@@ -401,7 +401,8 @@ class SearchTab(QWidget):
         if self.pending:
             parts.append("Searching…")
         if self.totals:
-            parts.append(f"{n:,} shown of {total:,} from {len(self.totals)} source{'s' if len(self.totals) != 1 else ''}")
+            sources = len(self.totals)
+            parts.append(f"{n:,} shown of {total:,} from {sources} source{'s' if sources != 1 else ''}")
         if self.errors:
             names = ", ".join(self.get_registry()[p].label for p in self.errors if p in self.get_registry())
             parts.append(f"⚠ {names} unavailable")

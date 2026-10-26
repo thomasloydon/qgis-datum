@@ -109,7 +109,8 @@ def _fetch_urllib(url, data=None, headers=None, timeout=None):
     h.update(headers or {})
     req = urllib.request.Request(url, data=data, headers=h)
     try:
-        with urllib.request.urlopen(req, timeout=timeout or _timeout) as resp:
+        # fetch() only lets http(s) URLs through, so file:// and custom schemes can't reach here
+        with urllib.request.urlopen(req, timeout=timeout or _timeout) as resp:  # nosec B310
             return resp.read()
     except urllib.error.HTTPError as e:
         raise NetworkError(f"HTTP {e.code} for {url}") from e
@@ -120,6 +121,10 @@ def _fetch_urllib(url, data=None, headers=None, timeout=None):
 def fetch(url, params=None, data=None, headers=None, timeout=None, use_cache=True):
     """GET (or POST when ``data`` is given) and return the body as bytes."""
     full = with_params(url, params)
+    scheme = urlsplit(full).scheme.lower()
+    if scheme not in ("http", "https"):
+        # never let a catalogue record or pasted URL read local files (file://) or odd schemes
+        raise NetworkError(f"Unsupported URL scheme '{scheme or '(none)'}': {full}")
     if isinstance(data, (dict, list)):
         data = json.dumps(data).encode()
     key = (full, data)

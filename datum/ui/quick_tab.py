@@ -117,7 +117,8 @@ class QuickTab(QWidget):
                 continue
             kind = ds.resources[0].kind if ds.resources else Kind.LINK
             it = QTreeWidgetItem([ds.title, ds.extra.get("coverage", ""), Kind.LABELS.get(kind, kind)])
-            it.setToolTip(0, f"<b>{ds.title}</b><br>{ds.description}" + (f"<br><i>{ds.license}</i>" if ds.license else ""))
+            licence = f"<br><i>{ds.license}</i>" if ds.license else ""
+            it.setToolTip(0, f"<b>{ds.title}</b><br>{ds.description}{licence}")
             it.setData(0, Qt.ItemDataRole.UserRole, ds)
             it.setFlags(Qt.ItemFlag.ItemIsEnabled | Qt.ItemFlag.ItemIsSelectable | Qt.ItemFlag.ItemIsUserCheckable)
             it.setCheckState(0, Qt.CheckState.Unchecked)

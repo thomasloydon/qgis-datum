@@ -22,11 +22,21 @@ jobs:
       - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
-      - run: pip install ruff==0.17.2
+      - run: pip install ruff==0.17.2 bandit==1.9.4 flake8==7.4.1 detect-secrets==1.5.0
       - name: Ruff
         run: ruff check --output-format=github .
       - name: Plugin metadata
         run: python scripts/release.py check
+      # The same three scanners plugins.qgis.org runs on every upload, so its report stays clean
+      - name: Bandit (security)
+        run: bandit -r datum -q
+      - name: flake8 (style)
+        run: flake8 --max-line-length=120 datum
+      - name: detect-secrets
+        working-directory: datum
+        run: |
+          detect-secrets scan --all-files --exclude-files 'metadata\.txt' > /tmp/secrets.json
+          python -c "import json,sys; r=json.load(open('/tmp/secrets.json'))['results']; print(r or 'no secrets'); sys.exit(1 if r else 0)"
 
   unit:
     name: Unit (Python ${{ matrix.python }})

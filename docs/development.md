@@ -61,6 +61,7 @@ scripts/release.py         metadata check, zip build, plugins.qgis.org upload
 | Command | What it runs | Needs |
 |---|---|---|
 | `make lint` | ruff | `pip install ruff` |
+| `make scan` | Bandit, flake8 and detect-secrets, the scanners plugins.qgis.org runs on uploads | `pip install bandit flake8 detect-secrets` |
 | `make test` | `tests/test_core.py` (GDAL tests skipped) | Python 3.9+ |
 | `make test-smoke` | `tests/qgis_smoke.py` in headless QGIS (plugin, dock, styling, terrain products) | QGIS installed (macOS paths by default) |
 | `make test-qgis` | `tests/qgis_integration.py` against the live services | QGIS + internet |
