@@ -79,11 +79,14 @@ def build_zip(out_dir):
                 full = os.path.join(dirpath, name)
                 # QGIS requires the zip to contain a single top-level folder named like the plugin
                 zf.write(full, os.path.relpath(full, ROOT))
+        # plugins.qgis.org rejects packages without a licence file inside the plugin folder
+        zf.write(os.path.join(ROOT, "LICENSE"), f"{PLUGIN}/LICENSE")
     with zipfile.ZipFile(path) as zf:
         names = zf.namelist()
     tops = {n.split("/")[0] for n in names}
     assert tops == {PLUGIN}, f"zip must contain only '{PLUGIN}/', got {tops}"
-    assert f"{PLUGIN}/metadata.txt" in names and f"{PLUGIN}/__init__.py" in names
+    for required in ("metadata.txt", "__init__.py", "LICENSE"):
+        assert f"{PLUGIN}/{required}" in names, f"zip is missing {PLUGIN}/{required}"
     print(path)
     return path
 
