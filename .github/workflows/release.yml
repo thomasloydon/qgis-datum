@@ -61,11 +61,12 @@ jobs:
           python-version: "3.12"
       - name: Upload
         env:
-          OSGEO_USERNAME: ${{ secrets.OSGEO_USERNAME }}
+          QGIS_PLUGIN_TOKEN: ${{ secrets.QGIS_PLUGIN_TOKEN }}       # per-plugin token (GitHub-login accounts)
+          OSGEO_USERNAME: ${{ secrets.OSGEO_USERNAME }}             # or OSGeo ID credentials
           OSGEO_PASSWORD: ${{ secrets.OSGEO_PASSWORD }}
         run: |
-          if [[ -z "$OSGEO_USERNAME" || -z "$OSGEO_PASSWORD" ]]; then
-            echo "::notice::OSGEO_USERNAME / OSGEO_PASSWORD not set; skipping plugins.qgis.org upload."
+          if [[ -z "$QGIS_PLUGIN_TOKEN" && ( -z "$OSGEO_USERNAME" || -z "$OSGEO_PASSWORD" ) ]]; then
+            echo "::notice::No QGIS_PLUGIN_TOKEN or OSGeo credentials set; skipping plugins.qgis.org upload."
             exit 0
           fi
           python scripts/release.py check --tag "$GITHUB_REF_NAME" --publishable
