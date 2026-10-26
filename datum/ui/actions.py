@@ -6,6 +6,7 @@ STAC item search, the DEM builder, or a layer picker as needed.
 """
 
 import os
+from urllib.parse import urlsplit
 
 from qgis.PyQt.QtCore import QObject, pyqtSignal, QUrl
 from qgis.PyQt.QtGui import QDesktopServices, QPainter
@@ -99,7 +100,7 @@ class DataActions(QObject):
             self._push(str(e), Qgis.MessageLevel.Warning)
 
     def add_now(self, ds, res, name=None):
-        if res.kind == Kind.WMS and not res.extra.get("wms_crs") and res.url.startswith("https://openmaps.gov.bc.ca"):
+        if res.kind == Kind.WMS and not res.extra.get("wms_crs") and urlsplit(res.url).hostname == "openmaps.gov.bc.ca":
             res.extra["wms_crs"] = "EPSG:3857"
         layer = loader.make_layer(res, name or self._layer_name(ds, res))
         style = res.extra.get("style")

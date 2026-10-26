@@ -4,6 +4,9 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ## [Unreleased]
 
+### Fixed
+- BC WMS default projection is chosen by exact host match rather than a URL prefix (CodeQL `py/incomplete-url-substring-sanitization`).
+
 ## [1.0.0] - 2026-10-25
 
 First public release.
