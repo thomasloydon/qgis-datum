@@ -1,0 +1,44 @@
+name: Data source request
+description: Suggest a catalogue, service or layer for Datum to support
+labels: [data source]
+body:
+  - type: input
+    id: name
+    attributes:
+      label: Source name
+      placeholder: Yukon Open Data / USGS National Hydrography Dataset / …
+    validations:
+      required: true
+  - type: input
+    id: url
+    attributes:
+      label: URL of the catalogue, API or service
+      description: A CKAN portal, STAC API, WMS/WFS/ArcGIS REST endpoint, or tile URL.
+      placeholder: https://…
+    validations:
+      required: true
+  - type: dropdown
+    id: kind
+    attributes:
+      label: What should Datum do with it?
+      options:
+        - Search it alongside the other catalogues
+        - Add a layer to Quick add
+        - Add it as an elevation (DEM) source
+        - Not sure
+    validations:
+      required: true
+  - type: input
+    id: coverage
+    attributes:
+      label: Coverage
+      placeholder: Yukon / United States / global
+  - type: input
+    id: licence
+    attributes:
+      label: Licence
+      description: Link to the data licence or terms of use, if you know it.
+  - type: textarea
+    id: why
+    attributes:
+      label: Why it's useful

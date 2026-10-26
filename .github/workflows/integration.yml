@@ -1,0 +1,23 @@
+name: Live services
+
+# End-to-end test against the real catalogues (BC, Open Canada, NRCan, Earth Search, Planetary Computer).
+# Kept out of PR CI because third-party outages would block merges; runs weekly and on demand.
+
+on:
+  schedule:
+    - cron: "17 14 * * 1"   # Mondays 14:17 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  integration:
+    runs-on: ubuntu-latest
+    container: qgis/qgis:stable
+    timeout-minutes: 30
+    env:
+      QT_QPA_PLATFORM: offscreen
+    steps:
+      - uses: actions/checkout@v7
+      - run: python3 tests/qgis_integration.py

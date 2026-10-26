@@ -1,0 +1,11 @@
+# Tooling config only; the plugin itself is installed by copying datum/ into QGIS.
+[tool.ruff]
+line-length = 120
+target-version = "py39"   # oldest Python shipped with a supported QGIS (3.28 on Windows)
+
+[tool.ruff.lint]
+select = ["F", "E9", "B006", "B008", "W6"]   # pyflakes, syntax errors, mutable defaults, invalid escapes
+
+[tool.ruff.lint.per-file-ignores]
+"datum/core/providers/__init__.py" = ["F401"]   # re-exports
+"tests/*" = ["E402"]                             # sys.path tweaks before imports

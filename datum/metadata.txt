@@ -1,0 +1,20 @@
+[general]
+name=Datum
+qgisMinimumVersion=3.28
+qgisMaximumVersion=4.99
+description=Find and add open geospatial data without the hunt: BC Data Catalogue, Open Government Canada, NRCan DEMs, STAC imagery and more.
+about=Datum searches several open-data catalogues at once (BC Data Catalogue, Open Government Canada, NRCan GEO.ca datacube, Earth Search, Microsoft Planetary Computer, plus any CKAN or STAC endpoint you add) and adds results as live WFS/WMS/ArcGIS/COG layers or clipped downloads. It includes a one-click catalogue of verified layers, an elevation builder that picks the best DEM for your area (HRDEM lidar, MRDEM, USGS 3DEP, Copernicus) and produces hillshade, slope, aspect, roughness and contours, a STAC imagery browser with date and cloud filters, add-by-URL auto-detection, favourites and history. No API keys needed.
+version=1.0.0
+author=Thomas Loydon
+email=48709520+thomasloydon@users.noreply.github.com
+repository=https://github.com/thomasloydon/qgis-datum
+tracker=https://github.com/thomasloydon/qgis-datum/issues
+homepage=https://github.com/thomasloydon/qgis-datum
+tags=open data,bc,british columbia,canada,dem,elevation,lidar,wfs,wms,stac,ckan,catalogue,download,hillshade,sentinel
+category=Web
+icon=icons/datum.svg
+experimental=False
+deprecated=False
+supportsQt6=True
+hasProcessingProvider=no
+changelog=1.0.0 First release.

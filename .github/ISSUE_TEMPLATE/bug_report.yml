@@ -1,0 +1,45 @@
+name: Bug report
+description: Something doesn't work as expected
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: Thanks for reporting! For security problems please use private reporting instead (see SECURITY.md).
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What you did, what you expected, and what happened instead.
+      placeholder: Searched "streams", double-clicked "Freshwater Atlas Stream Network", got an error…
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: Include the dataset, URL or area if relevant.
+      value: |
+        1.
+        2.
+        3.
+  - type: input
+    id: datum
+    attributes:
+      label: Datum version
+      description: Plugins › Manage and Install Plugins › Installed › Datum
+      placeholder: "1.0.0"
+    validations:
+      required: true
+  - type: input
+    id: qgis
+    attributes:
+      label: QGIS version and OS
+      placeholder: QGIS 3.44.15, macOS 15
+    validations:
+      required: true
+  - type: textarea
+    id: log
+    attributes:
+      label: Log
+      description: Copy from View › Panels › Log Messages › Datum (and the Python tab if there's a traceback).
+      render: text

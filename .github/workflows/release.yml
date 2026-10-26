@@ -1,0 +1,72 @@
+name: Release
+
+# Bump `version` (and `changelog`) in datum/metadata.txt, commit, then:
+#   git tag v1.2.3 && git push origin v1.2.3
+# Tags with -alpha/-beta/-rc become GitHub pre-releases and are not sent to plugins.qgis.org.
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+
+jobs:
+  ci:
+    uses: ./.github/workflows/ci.yml
+
+  github-release:
+    needs: ci
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    outputs:
+      prerelease: ${{ steps.meta.outputs.prerelease }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - name: Tag matches metadata.txt
+        run: python scripts/release.py check --tag "$GITHUB_REF_NAME"
+      - name: Release info
+        id: meta
+        run: |
+          if [[ "$GITHUB_REF_NAME" =~ -(alpha|beta|rc) ]]; then echo "prerelease=true" >> "$GITHUB_OUTPUT";
+          else echo "prerelease=false" >> "$GITHUB_OUTPUT"; fi
+      - name: Build plugin zip
+        id: zip
+        run: echo "path=$(python scripts/release.py zip --out dist)" >> "$GITHUB_OUTPUT"
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ZIP: ${{ steps.zip.outputs.path }}
+          PRERELEASE: ${{ steps.meta.outputs.prerelease }}
+        run: |
+          flags=(--title "Datum ${GITHUB_REF_NAME#v}" --generate-notes --verify-tag)
+          [[ "$PRERELEASE" == "true" ]] && flags+=(--prerelease)
+          gh release create "$GITHUB_REF_NAME" "$ZIP" "${flags[@]}"
+
+  qgis-plugins:
+    name: Publish to plugins.qgis.org
+    needs: github-release
+    if: needs.github-release.outputs.prerelease != 'true'
+    runs-on: ubuntu-latest
+    # Protected environment: only v* tags, and the maintainer approves each upload.
+    environment: plugins.qgis.org
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - name: Upload
+        env:
+          OSGEO_USERNAME: ${{ secrets.OSGEO_USERNAME }}
+          OSGEO_PASSWORD: ${{ secrets.OSGEO_PASSWORD }}
+        run: |
+          if [[ -z "$OSGEO_USERNAME" || -z "$OSGEO_PASSWORD" ]]; then
+            echo "::notice::OSGEO_USERNAME / OSGEO_PASSWORD not set; skipping plugins.qgis.org upload."
+            exit 0
+          fi
+          python scripts/release.py check --tag "$GITHUB_REF_NAME" --publishable
+          python scripts/release.py publish "$(python scripts/release.py zip --out dist)"

@@ -1,0 +1,80 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+  workflow_call:          # reused by release.yml so a tag is only released if CI passes
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - run: pip install ruff==0.17.2
+      - name: Ruff
+        run: ruff check --output-format=github .
+      - name: Plugin metadata
+        run: python scripts/release.py check
+
+  unit:
+    name: Unit (Python ${{ matrix.python }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ["3.10", "3.13"]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Core tests (no QGIS)
+        run: python -m unittest discover -s tests -v
+
+  qgis:
+    name: QGIS ${{ matrix.qgis }}
+    runs-on: ubuntu-latest
+    container: qgis/qgis:${{ matrix.qgis }}
+    # "latest" is the nightly master build: an early warning, not a merge blocker
+    continue-on-error: ${{ matrix.qgis == 'latest' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        qgis: [ltr, stable, latest]
+    env:
+      QT_QPA_PLATFORM: offscreen
+    steps:
+      - uses: actions/checkout@v7
+      - name: Core tests incl. GDAL
+        run: python3 -m unittest discover -s tests -v
+      - name: Offline smoke test (plugin, dock, styling, terrain products)
+        run: python3 tests/qgis_smoke.py
+
+  package:
+    needs: [lint, unit, qgis]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - name: Build plugin zip
+        id: zip
+        run: echo "path=$(python scripts/release.py zip --out dist)" >> "$GITHUB_OUTPUT"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: datum-plugin-zip
+          path: ${{ steps.zip.outputs.path }}
+          retention-days: 14
