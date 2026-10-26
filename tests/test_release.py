@@ -2,10 +2,12 @@
 """Tests for scripts/release.py: metadata checks, zip layout and the token upload.
 
 The upload is exercised against a local stand-in for plugins.qgis.org that mimics
-the real view (qgis/QGIS-Django: plugins.views.version_create_api).
+the live API (qgis/QGIS-Plugins-Website: plugins.views._version_create_or_update),
+which answers 201 with JSON on success and 400 with JSON field errors otherwise.
 """
 
 import email.parser
+import json
 import email.policy
 import http.server
 import importlib.util
@@ -44,14 +46,19 @@ class FakeRepo(http.server.BaseHTTPRequestHandler):
         FakeRepo.received.append(parts)
         package = parts["package"].get_payload(decode=True)
         if not zipfile.is_zipfile(io.BytesIO(package)):
-            return self._reply(200, '<form><ul class="errorlist"><li>The <b>package</b> is not a zip file.</li></ul></form>')
-        self.send_response(302)
-        self.send_header("Location", f"/plugins/{release.PLUGIN}/version/1.0.0/")
-        self.end_headers()
+            return self._json(400, {"success": False, "error": "Validation failed",
+                                    "errors": {"package": ["The package is not a zip file."]}})
+        self._json(201, {"success": True, "message": "The Plugin Version has been successfully created.",
+                         "version": "1.0.2", "plugin_id": 6733, "version_id": 99, "approved": False,
+                         "validation_status": "validating", "scan_url": "/plugins/datum/version/1.0.2/#security-tab",
+                         "approval_message": "Your plugin version is pending security validation."})
 
-    def _reply(self, code, text):
+    def _json(self, code, data):
+        self._reply(code, json.dumps(data), "application/json")
+
+    def _reply(self, code, text, ctype="text/html"):
         self.send_response(code)
-        self.send_header("Content-Type", "text/html")
+        self.send_header("Content-Type", ctype)
         self.end_headers()
         self.wfile.write(text.encode())
 
@@ -88,7 +95,9 @@ class TokenUploadTests(unittest.TestCase):
     def test_success_sends_token_package_and_changelog(self):
         ok, text = self.run_upload(self.real_zip())
         self.assertTrue(ok, text)
-        self.assertIn("published", text)
+        self.assertIn("published: datum 1.0.2 uploaded (version id 99)", text)
+        self.assertIn("pending security validation", text)
+        self.assertIn("/plugins/datum/version/1.0.2/#security-tab", text)
         parts = FakeRepo.received[-1]
         self.assertEqual(parts["package"].get_filename(), f"{release.PLUGIN}-{release.metadata()['version']}.zip")
         self.assertIn(release.metadata()["version"], parts["changelog"].get_content())
@@ -110,7 +119,7 @@ class TokenUploadTests(unittest.TestCase):
             f.write(b"not a zip")
         ok, text = self.run_upload(bad)
         self.assertFalse(ok)
-        self.assertIn("The package is not a zip file.", text)
+        self.assertIn("Validation failed; package: The package is not a zip file.", text)
 
     def test_publish_prefers_token_and_requires_credentials(self):
         env = {k: os.environ.pop(k, None) for k in ("QGIS_PLUGIN_TOKEN", "OSGEO_USERNAME", "OSGEO_PASSWORD")}
