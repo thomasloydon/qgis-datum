@@ -4,6 +4,9 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ## [Unreleased]
 
+### Fixed
+- Release tooling: a successful plugins.qgis.org upload (HTTP 201 from the token API) was reported as a failure. The upload log now shows the version id, approval status and a link to the security scan.
+
 ## [1.0.2] - 2026-10-25
 
 ### Security

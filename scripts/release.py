@@ -13,6 +13,7 @@ accounts) or, failing that, OSGEO_USERNAME / OSGEO_PASSWORD.
 
 import argparse
 import configparser
+import json
 import os
 import re
 import sys
@@ -127,8 +128,10 @@ class _NoRedirect(urllib.request.HTTPRedirectHandler):
 def publish_with_token(zip_path, token, base_url=REPO_URL):
     """POST to /plugins/api/<package>/version/add/ with a per-plugin Bearer token.
 
-    Tokens are created on the plugin's page (Manage › Tokens) once the plugin exists,
-    so the very first upload has to go through the website.
+    Tokens are created on the plugin's page (Tokens button) once the plugin exists,
+    so the very first upload has to go through the website. The endpoint answers with
+    JSON: 201 on success, 400 with field errors otherwise (qgis/QGIS-Plugins-Website,
+    plugins/views.py: _version_create_or_update).
     """
     md = metadata()
     fields = {"changelog": md.get("changelog", "")}
@@ -149,8 +152,18 @@ def publish_with_token(zip_path, token, base_url=REPO_URL):
     except urllib.error.URLError as e:
         print(f"error: could not reach {base_url}: {e.reason}", file=sys.stderr)
         return False
-    if 300 <= status < 400:
-        print(f"published: {PLUGIN} {md['version']} uploaded; it appears once the QGIS team approves it")
+    try:
+        payload = json.loads(page)
+    except ValueError:
+        payload = {}
+    if status == 201 or 300 <= status < 400:  # JSON API answers 201; the older HTML form redirected
+        version = payload.get("version", md["version"])
+        print(f"published: {PLUGIN} {version} uploaded (version id {payload.get('version_id', '?')})")
+        for line in [payload.get("approval_message")] + list(payload.get("warnings") or []):
+            if line:
+                print(f"  {line}")
+        if payload.get("scan_url"):
+            print(f"  security scan: {base_url}{payload['scan_url']}")
         return True
     if status == 403:
         print("error: plugins.qgis.org refused the token (revoked, or for another plugin)", file=sys.stderr)
@@ -159,8 +172,16 @@ def publish_with_token(zip_path, token, base_url=REPO_URL):
         print(f"error: no plugin named '{PLUGIN}' on plugins.qgis.org yet; upload the first version "
               f"by hand at {base_url}/plugins/add/", file=sys.stderr)
         return False
-    errors = [re.sub(r"<[^>]+>", " ", e) for e in re.findall(r'<ul class="errorlist[^"]*">(.*?)</ul>', page, re.S)]
-    detail = "; ".join(" ".join(e.split()) for e in errors) or f"HTTP {status}"
+    if payload:
+        details = [str(payload.get("error") or "")]
+        for field, messages in (payload.get("errors") or {}).items():
+            texts = [m.get("message", m) if isinstance(m, dict) else m for m in messages]
+            details.append(f"{field}: {' '.join(str(t) for t in texts)}")
+        detail = "; ".join(d for d in details if d) or f"HTTP {status}"
+    else:
+        errors = [re.sub(r"<[^>]+>", " ", e)
+                  for e in re.findall(r'<ul class="errorlist[^"]*">(.*?)</ul>', page, re.S)]
+        detail = "; ".join(" ".join(e.split()) for e in errors) or f"HTTP {status}"
     print(f"error: plugins.qgis.org rejected the upload: {detail}", file=sys.stderr)
     return False
 
