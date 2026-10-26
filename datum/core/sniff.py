@@ -6,10 +6,20 @@ Pure Python: used by the CKAN provider to classify resources and by the
 """
 
 import re
-import xml.etree.ElementTree as ET
+# ElementTree is only used through parse_xml(), which refuses entity declarations
+import xml.etree.ElementTree as ET  # nosec B405
 from urllib.parse import urlsplit, parse_qsl, urlunsplit
 
 from .models import Kind, Resource
+
+try:  # prefer defusedxml when the QGIS install happens to ship it
+    from defusedxml.ElementTree import fromstring as _defused_fromstring
+    from defusedxml import DefusedXmlException
+except ImportError:
+    _defused_fromstring = None
+    DefusedXmlException = ValueError
+
+MAX_XML_BYTES = 64 * 1024 * 1024
 
 VECTOR_EXT = {".geojson", ".json", ".kml", ".kmz", ".gpkg", ".shp", ".gml", ".fgb", ".csv", ".parquet"}
 RASTER_EXT = {".tif", ".tiff", ".vrt", ".img", ".jp2", ".asc", ".nc", ".dem"}
@@ -140,6 +150,32 @@ def resource_from_url(url, name="", fmt=""):
 
 # --------------------------------------------------------------------------- OWS capabilities
 
+def parse_xml(data):
+    """Parse an XML document fetched from a remote server, refusing XML attacks.
+
+    Service documents come from arbitrary servers, so entity declarations (used by
+    "billion laughs" expansion and external-entity attacks) are rejected outright; real
+    capabilities documents never declare entities. A DOCTYPE that merely references an
+    external DTD (WMS 1.1.1 does) is allowed: Python's expat never fetches it.
+    """
+    if isinstance(data, str):
+        data = data.encode("utf-8")
+    if len(data) > MAX_XML_BYTES:
+        raise ET.ParseError("XML document is too large")
+    if _defused_fromstring is not None:
+        try:
+            return _defused_fromstring(data, forbid_dtd=False, forbid_entities=True, forbid_external=True)
+        except DefusedXmlException as e:
+            raise ET.ParseError(f"Refused unsafe XML: {e}") from e
+    if data[:2] in (b"\xff\xfe", b"\xfe\xff") or b"\x00" in data[:4]:
+        # the entity check below works on ASCII-compatible bytes only; services don't send UTF-16/32
+        raise ET.ParseError("UTF-16/32 XML documents are not supported")
+    if b"<!ENTITY" in data:
+        raise ET.ParseError("Refused unsafe XML: entity declarations are not allowed")
+    # entity declarations and non-ASCII-compatible encodings were refused above
+    return ET.fromstring(data)  # nosec B314
+
+
 def _local(tag):
     return tag.rsplit("}", 1)[-1]
 
@@ -163,7 +199,7 @@ def _text(el, name, default=""):
 def detect_capabilities(xml_bytes):
     """Return 'wms', 'wfs', 'wmts' or None for a GetCapabilities document."""
     try:
-        root = ET.fromstring(xml_bytes)
+        root = parse_xml(xml_bytes)
     except ET.ParseError:
         return None
     tag = _local(root.tag).lower()
@@ -178,7 +214,7 @@ def detect_capabilities(xml_bytes):
 
 def parse_wms_capabilities(xml_bytes):
     """List of dicts: name, title, abstract, crs (list), bbox (lon/lat), styles."""
-    root = ET.fromstring(xml_bytes)
+    root = parse_xml(xml_bytes)
     out = []
 
     def walk(layer, inherited_crs):
@@ -220,7 +256,7 @@ def parse_wms_capabilities(xml_bytes):
 
 def parse_wfs_capabilities(xml_bytes):
     """List of dicts: name, title, abstract, crs, bbox."""
-    root = ET.fromstring(xml_bytes)
+    root = parse_xml(xml_bytes)
     out = []
     ftl = _child(root, "FeatureTypeList")
     if ftl is None:
@@ -246,14 +282,14 @@ def parse_wfs_capabilities(xml_bytes):
 
 def parse_wmts_capabilities(xml_bytes):
     """List of dicts: name (identifier), title, formats, tile_matrix_sets, styles."""
-    root = ET.fromstring(xml_bytes)
+    root = parse_xml(xml_bytes)
     out = []
     contents = _child(root, "Contents")
     if contents is None:
         return out
     for layer in _children(contents, "Layer"):
         ident = _text(layer, "Identifier")
-        tms = [_text(l, "TileMatrixSet") for l in _children(layer, "TileMatrixSetLink")]
+        tms = [_text(link, "TileMatrixSet") for link in _children(layer, "TileMatrixSetLink")]
         out.append({
             "name": ident,
             "title": _text(layer, "Title") or ident,

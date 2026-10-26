@@ -90,6 +90,32 @@ class SniffTests(unittest.TestCase):
         self.assertEqual(ft[0]["name"], "pub:STREAMS")
         self.assertEqual(ft[0]["bbox"], (-139.0, 48.0, -114.0, 60.0))
 
+    def test_parse_xml_refuses_attacks(self):
+        import xml.etree.ElementTree as ET
+        bomb = (b'<?xml version="1.0"?><!DOCTYPE lolz [<!ENTITY lol "lol">'
+                b'<!ENTITY lol2 "&lol;&lol;&lol;&lol;&lol;&lol;&lol;&lol;">]><WMS_Capabilities>&lol2;</WMS_Capabilities>')
+        xxe = (b'<?xml version="1.0"?><!DOCTYPE x [<!ENTITY xxe SYSTEM "file:///etc/passwd">]>'
+               b'<WMS_Capabilities>&xxe;</WMS_Capabilities>')
+        for doc in (bomb, xxe, "<a/>".encode("utf-16")):
+            with self.assertRaises(ET.ParseError):
+                sniff.parse_xml(doc)
+        self.assertIsNone(sniff.detect_capabilities(bomb))  # detection treats it as "not a service"
+
+    def test_parse_xml_allows_wms111_doctype(self):
+        doc = (b'<?xml version="1.0"?><!DOCTYPE WMT_MS_Capabilities SYSTEM '
+               b'"http://schemas.opengis.net/wms/1.1.1/WMS_MS_Capabilities.dtd"><WMT_MS_Capabilities version="1.1.1">'
+               b'<Capability><Layer><Title>t</Title><Layer><Name>roads</Name><Title>Roads</Title>'
+               b'<LatLonBoundingBox minx="-1" miny="-2" maxx="3" maxy="4"/></Layer></Layer></Capability>'
+               b'</WMT_MS_Capabilities>')
+        self.assertEqual(sniff.detect_capabilities(doc), "wms")
+        self.assertEqual(sniff.parse_wms_capabilities(doc)[0]["bbox"], (-1.0, -2.0, 3.0, 4.0))
+
+    def test_fetch_only_allows_http(self):
+        from datum.core import net
+        for url in ("file:///etc/passwd", "ftp://example.org/x", "javascript:alert(1)"):
+            with self.assertRaises(net.NetworkError):
+                net.fetch(url, use_cache=False)
+
     def test_pick_crs(self):
         self.assertEqual(sniff.pick_crs(["EPSG:4326", "EPSG:3005"], "EPSG:3005"), "EPSG:3005")
         self.assertEqual(sniff.pick_crs(["EPSG:4326", "EPSG:3857"], "EPSG:32610"), "EPSG:3857")

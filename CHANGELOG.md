@@ -4,6 +4,16 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ## [Unreleased]
 
+## [1.0.2] - 2026-10-25
+
+### Security
+- Service capabilities are parsed through a hardened XML parser that refuses entity declarations ("billion laughs" and external-entity attacks), UTF-16/32 documents and oversized responses. It uses `defusedxml` when available. Flagged by the plugins.qgis.org scan (Bandit B314/B405).
+- Network fetches only allow `http` and `https`, so catalogue records or pasted URLs can't read local files (Bandit B310).
+
+### Changed
+- Styling and zoom failures are written to the Datum log instead of being silently ignored.
+- CI now runs Bandit, flake8 and detect-secrets, the same scanners plugins.qgis.org uses.
+
 ## [1.0.1] - 2026-10-25
 
 ### Fixed
@@ -31,6 +41,7 @@ First public release.
 - Hillshades streaked when QGIS drew from coarse overviews; DEM layers now use bilinear resampling.
 - BC WMS default projection is now chosen by exact host match rather than a URL prefix (flagged by CodeQL).
 
-[Unreleased]: https://github.com/thomasloydon/qgis-datum/compare/v1.0.1...HEAD
+[Unreleased]: https://github.com/thomasloydon/qgis-datum/compare/v1.0.2...HEAD
+[1.0.2]: https://github.com/thomasloydon/qgis-datum/compare/v1.0.1...v1.0.2
 [1.0.1]: https://github.com/thomasloydon/qgis-datum/compare/v1.0.0...v1.0.1
 [1.0.0]: https://github.com/thomasloydon/qgis-datum/releases/tag/v1.0.0

@@ -20,6 +20,7 @@ For security problems, don't open an issue. Follow [SECURITY.md](SECURITY.md) in
 
    ```sh
    make lint          # ruff
+   make scan          # bandit, flake8, detect-secrets (what plugins.qgis.org runs)
    make test          # unit tests (no QGIS needed)
    make test-smoke    # headless QGIS checks, if you have QGIS installed
    ```

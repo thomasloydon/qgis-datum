@@ -21,9 +21,9 @@ from ..core.sniff import (
     parse_wms_capabilities, parse_wmts_capabilities, parse_wfs_capabilities, pick_crs,
 )
 from ..core.dem import DemBuilder, DemRequest, SOURCES_BY_ID, AUTO, safe_name, bbox_area_km2
+from .dialogs import LayerPickerDialog, StacDialog
 
 QUICK_STREAM_KM2 = 25000   # one-click DEMs larger than this stream instead of downloading
-from .dialogs import LayerPickerDialog, StacDialog
 
 
 class DataActions(QObject):
@@ -154,20 +154,20 @@ class DataActions(QObject):
                 if not dlg.exec():
                     return
                 chosen = dlg.selected()
-            for l in chosen:
-                r = Resource(name=l["title"], kind=res.kind, url=url, format=res.format, layer=l["name"],
+            for lyr in chosen:
+                r = Resource(name=lyr["title"], kind=res.kind, url=url, format=res.format, layer=lyr["name"],
                              extra=dict(res.extra))
                 if service == "wms":
-                    r.extra["wms_crs"] = pick_crs(l.get("crs"), loader.project_crs())
+                    r.extra["wms_crs"] = pick_crs(lyr.get("crs"), loader.project_crs())
                 elif service == "wmts":
-                    tms = l.get("tile_matrix_sets") or ["EPSG:3857"]
+                    tms = lyr.get("tile_matrix_sets") or ["EPSG:3857"]
                     pref = next((t for t in tms if "3857" in t or "GoogleMaps" in t), tms[0])
-                    r.extra.update(tile_matrix_set=pref, format=(l.get("formats") or ["image/png"])[0],
-                                   style=(l.get("styles") or ["default"])[0])
-                elif service == "wfs" and l.get("crs"):
-                    r.crs = l["crs"][0].replace("urn:ogc:def:crs:EPSG::", "EPSG:")
+                    r.extra.update(tile_matrix_set=pref, format=(lyr.get("formats") or ["image/png"])[0],
+                                   style=(lyr.get("styles") or ["default"])[0])
+                elif service == "wfs" and lyr.get("crs"):
+                    r.crs = lyr["crs"][0].replace("urn:ogc:def:crs:EPSG::", "EPSG:")
                 try:
-                    self.add_now(ds, r, name=l["title"])
+                    self.add_now(ds, r, name=lyr["title"])
                 except loader.LoadError as e:
                     self._push(str(e), Qgis.MessageLevel.Warning)
 
@@ -184,18 +184,19 @@ class DataActions(QObject):
             if error or not info:
                 self._push(f"Couldn't read the ArcGIS service: {error}", Qgis.MessageLevel.Warning)
                 return
-            layers = [{"name": str(l["id"]), "title": l.get("name", str(l["id"])), "abstract": l.get("type", "")}
-                      for l in info.get("layers", []) + info.get("tables", []) if "id" in l]
+            layers = [{"name": str(lyr["id"]), "title": lyr.get("name", str(lyr["id"])),
+                       "abstract": lyr.get("type", "")}
+                      for lyr in info.get("layers", []) + info.get("tables", []) if "id" in lyr]
             if not layers:
                 self._push("No layers found in this service.", Qgis.MessageLevel.Warning)
                 return
             dlg = LayerPickerDialog(ds.title if ds else res.url, layers, self._parent())
             if not dlg.exec():
                 return
-            for l in dlg.selected():
-                r = Resource(l["title"], res.kind, res.url, res.format, l["name"], extra=dict(res.extra))
+            for lyr in dlg.selected():
+                r = Resource(lyr["title"], res.kind, res.url, res.format, lyr["name"], extra=dict(res.extra))
                 try:
-                    self.add_now(ds, r, name=l["title"])
+                    self.add_now(ds, r, name=lyr["title"])
                 except loader.LoadError as e:
                     self._push(str(e), Qgis.MessageLevel.Warning)
 
@@ -248,8 +249,13 @@ class DataActions(QObject):
         dlg = StacDialog(self.iface, provider, res.layer, ds.title, self._parent(), preset=res.extra.get("preset"),
                          on_add=lambda *a: self.add_stac_items(ds, *a))
         self._dialogs.append(dlg)
-        dlg.finished.connect(lambda *_: (dlg.aoi.clear_band(), self._dialogs.remove(dlg) if dlg in self._dialogs else None))
+        dlg.finished.connect(lambda *_: self._stac_closed(dlg))
         dlg.show()
+
+    def _stac_closed(self, dlg):
+        dlg.aoi.clear_band()
+        if dlg in self._dialogs:
+            self._dialogs.remove(dlg)
 
     def add_stac_items(self, ds, provider, collection, items, key, mosaic, download, bbox_ll):
         hrefs = [(it.get("id"), provider.asset_href(it, key)) for it in items]
@@ -420,5 +426,5 @@ class DataActions(QObject):
             sh = QgsRasterShader()
             sh.setRasterShaderFunction(fn)
             layer.setRenderer(QgsSingleBandPseudoColorRenderer(layer.dataProvider(), 1, sh))
-        except Exception:  # noqa: BLE001
-            pass
+        except Exception as e:  # noqa: BLE001 - styling must never block adding data
+            tasks.log(f"Couldn't apply a colour ramp to {layer.name()}: {e}", Qgis.MessageLevel.Warning)

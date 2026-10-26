@@ -81,7 +81,8 @@ class LibraryTab(QWidget):
             best = ds.best_resource()
             it = QListWidgetItem(theme.icon(_kind_icon(best.kind) if best else "link",
                                             theme.source_color(ds.source)),
-                                 f"{ds.title}\n{ds.source_label}" + (f" · {ds.organization}" if ds.organization else ""))
+                                 f"{ds.title}\n{ds.source_label}"
+                                 + (f" · {ds.organization}" if ds.organization else ""))
             it.setData(Qt.ItemDataRole.UserRole, ds)
             it.setToolTip(ds.description[:400])
             self.favs.addItem(it)

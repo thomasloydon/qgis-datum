@@ -10,10 +10,15 @@ QGIS_PY  = PYTHONHOME="$(QGIS_APP)/Frameworks" \
            QT_QPA_PLATFORM=offscreen PROJ_DATA="$(QGIS_APP)/Resources/qgis/proj" \
            "$(QGIS_APP)/MacOS/python3.12"
 
-.PHONY: lint test test-smoke test-qgis check deploy undeploy zip clean
+.PHONY: lint scan test test-smoke test-qgis check deploy undeploy zip clean
 
 lint:            ## ruff (pip install ruff)
 	ruff check .
+
+scan:            ## the scanners plugins.qgis.org runs (pip install bandit flake8 detect-secrets)
+	bandit -r datum -q
+	flake8 --max-line-length=120 datum
+	cd datum && detect-secrets scan --all-files --exclude-files 'metadata\.txt' | python3 -c "import json,sys; r=json.load(sys.stdin)['results']; print(r or 'no secrets'); sys.exit(1 if r else 0)"
 
 test:            ## fast unit tests, no QGIS needed
 	python3 -m unittest discover -s tests -v

@@ -25,6 +25,11 @@ class LoadError(Exception):
     pass
 
 
+def _warn(msg):
+    from qgis.core import QgsMessageLog, Qgis
+    QgsMessageLog.logMessage(msg, "Datum", Qgis.MessageLevel.Warning)
+
+
 # --------------------------------------------------------------------------- uri builders
 
 def wms_uri(url, layer, crs="EPSG:3857", fmt="image/png", style=""):
@@ -209,8 +214,8 @@ def zoom_to(layer):
     try:
         canvas.setExtent(ct.transformBoundingBox(extent))
         canvas.refresh()
-    except Exception:  # noqa: BLE001 - transform failures shouldn't break adding
-        pass
+    except Exception as e:  # noqa: BLE001 - a failed zoom shouldn't undo adding the layer
+        _warn(f"Couldn't zoom to {layer.name()}: {e}")
 
 
 # --------------------------------------------------------------------------- raster styling
@@ -274,8 +279,8 @@ def style_dem(layer, style=None):
             style_elevation(layer)
         elif style == "hillshade":
             style_hillshade(layer)
-    except Exception:  # noqa: BLE001 - styling must never block adding data
-        pass
+    except Exception as e:  # noqa: BLE001 - styling must never block adding data
+        _warn(f"Couldn't style {layer.name()} as {style}; using QGIS defaults: {e}")
 
 
 def add_blend_hillshade(source_layer, dataset=None, name=None, group=None):
